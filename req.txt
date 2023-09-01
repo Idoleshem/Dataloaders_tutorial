@@ -1,1 +1,5 @@
-torch==2.0.1
+numpy==1.22.4
+cv2==4.8.0.76        
+pandas==2.1.1    
+torch==1.13.0      
+torchvision==0.14.0 

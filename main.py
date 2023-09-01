@@ -1,13 +1,11 @@
 
 import os
 import warnings
-
 import cv2
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-
 from helpers import extract_frames
 
 # Suppress DeprecationWarnings related to pandas
@@ -87,13 +85,11 @@ def process_video(video_path,batch_size):
             # Increment the frame number for the next frame
             frame_number += 1
 
-
     # Set the DataFrame index with two levels: 'Frame' and 'Object'
     result_df.set_index(['Frame', 'Object'], inplace=True)
     
     # calculate average num of persons in the video:
     average_num_of_persons = result_df.groupby(level=0).size().mean()
-
 
     return average_num_of_persons
 
@@ -102,5 +98,4 @@ if __name__ == "__main__":
     video_path = "data/bus.mp4"
     batch_size = 4 
     average_num_of_persons = process_video(video_path,batch_size)
-
-    print(f"Total persons detected: {average_num_of_persons}")
+    print(f"Average number of persons in video: {average_num_of_persons}")
