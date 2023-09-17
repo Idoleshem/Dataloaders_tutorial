@@ -1,12 +1,15 @@
 
 import os
 import warnings
+
 import cv2
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from helpers import extract_frames
+from torchvision.ops import nms
+
+from helpers import extract_batch_results, extract_frames, visualize_yolo_inference
 
 # Suppress DeprecationWarnings related to pandas
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -31,30 +34,10 @@ class FrameDataset(Dataset):
         
         return frame
 
-def extract_batch_results(result_df,results,batch_idx,frame_number):
-    confidence_threshold = 0.7
-
-    print(f"frame num - {frame_number}")
-
-    for box_idx in range(results.size(1)):  # Iterate over the boxes
-        class_probs = results[batch_idx, box_idx, 5:]  # Start at index 5 for class probabilities
-        class_scores = torch.softmax(class_probs, dim=0)
-        predicted_class = torch.argmax(class_scores).item()
-        confidence = results[batch_idx, box_idx, 4].item()
-
-        # Check if the predicted class is not class 0
-        if predicted_class == 0 and confidence >= confidence_threshold:
-
-            bbox = results[batch_idx, box_idx, :4].tolist()
-            
-            # Add the results to the DataFrame
-            result_df.loc[len(result_df)] = [frame_number, box_idx, predicted_class, confidence, bbox[0], bbox[1], bbox[2], bbox[3]]   
-
-    return result_df
-
 def process_video(video_path,batch_size):
 
     frames_dir = "C:\\Users\\Ido\\Desktop\\Dataloaders_tutorial\\frames"
+    output_dir = "C:\\Users\\Ido\\Desktop\\Dataloaders_tutorial\\frames_with_bb"
     #frames_dir = extract_frames(video_path)
 
     model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)
@@ -62,9 +45,10 @@ def process_video(video_path,batch_size):
 
     transform = transforms.Compose([
         transforms.ToPILImage(),  # Convert to PIL image
-        transforms.Resize((416, 416)),  # Resize to 416x416
+        transforms.Resize((640, 640)),  # Resize
         transforms.ToTensor(),
     ])
+
 
     dataset = FrameDataset(frames_dir,transform=transform)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False) 
@@ -75,18 +59,23 @@ def process_video(video_path,batch_size):
     frame_number = 0
 
     for batch_idx, batch in enumerate(data_loader):        
-        results = model(batch)
+        results = model(batch) # index 0 - batch size, index 1 - num of grid cells, index 2 (85)  class scores, objectness scores, and bounding box coordinates     
+        # 4 bounding box coordinates (x, y, width, height) 
+        # 1 objectness score indicating the presence of an object.
+        # 80 class scores
 
         # Iterate through the results tensor
-        for batch_idx in range(results.size(0)):  # Iterate over the batch
+        for frame_idx_in_batch in range(results.size(0)):  # Iterate over the batch
             
-            result_df = extract_batch_results(result_df,results,batch_idx,frame_number)
+            result_df = extract_batch_results(result_df,results,frame_idx_in_batch,frame_number)
 
             # Increment the frame number for the next frame
             frame_number += 1
 
     # Set the DataFrame index with two levels: 'Frame' and 'Object'
     result_df.set_index(['Frame', 'Object'], inplace=True)
+
+    visualize_yolo_inference(result_df, frames_dir, output_dir)
     
     # calculate average num of persons in the video:
     average_num_of_persons = result_df.groupby(level=0).size().mean()
@@ -95,7 +84,11 @@ def process_video(video_path,batch_size):
 
 if __name__ == "__main__":
     
+
+
     video_path = "data/bus.mp4"
-    batch_size = 4 
+    batch_size = 2 
     average_num_of_persons = process_video(video_path,batch_size)
     print(f"Average number of persons in video: {average_num_of_persons}")
+
+
