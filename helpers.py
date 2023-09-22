@@ -1,12 +1,10 @@
 import os
 
 import cv2
-import pandas as pd
 import torch
-from torchvision.ops import nms
 
 
-def extract_frames(video_path):
+def extract_frames(video_path, num_frames):
     # Create a 'frames' subfolder if it doesn't exist
     output_dir = "frames"
     os.makedirs(output_dir, exist_ok=True)
@@ -15,12 +13,11 @@ def extract_frames(video_path):
     cap = cv2.VideoCapture(video_path)
     frame_count = 0
 
-    while True:
-        
-        print(f"extract frame {frame_count}")
+    while frame_count < num_frames:
+        print(f"Extracting frame {frame_count}")
         ret, frame = cap.read()
 
-        # Break the loop when the video ends
+        # Break the loop when the video ends or when the desired number of frames is reached
         if not ret:
             break
 
@@ -33,8 +30,7 @@ def extract_frames(video_path):
     # Release the video capture object
     cap.release()
 
-    return os.path.abspath(output_dir)  # Return the absolute path to the 'frames' subdirectory
-
+    return os.path.abspath(output_dir) 
 
 
 def nms(detections, confidence_threshold=0.7, iou_threshold=0.5):
@@ -77,9 +73,10 @@ def calculate_iou(box1, box2):
     return iou
 
 def extract_batch_results(result_df, results, frame_idx, frame_number):
+    
     print(f"frame num - {frame_number}")
+    
     confidence_threshold = 0.7
-    nms_threshold = 0.95  # Adjust as needed
 
     # Filter detections based on confidence threshold
     detections = results[frame_idx, results[frame_idx, :, 4] > confidence_threshold]
@@ -90,25 +87,19 @@ def extract_batch_results(result_df, results, frame_idx, frame_number):
     predicted_classes = torch.argmax(class_scores, dim=1)
     confidences = detections[:, 4]
 
-    # Apply NMS to filter overlapping bounding boxes
-    keep_indices = nms(detections[:, :5], confidence_threshold, 0.5)
-    selected_indices = []  # Initialize a list to store the selected box indices
-
     # Iterate over the filtered detections after NMS
-    for box_idx in keep_indices:
+    for box_idx in range(len(detections)):
         predicted_class = predicted_classes[box_idx].item()
         confidence = confidences[box_idx].item()
         bbox = detections[box_idx, :4].tolist()
 
-        # Check if the predicted class is not class 0
+        # Check if the predicted class is class 0
         if predicted_class == 0:
             # Add the results to the DataFrame
-            result_df.loc[len(result_df)] = [frame_number, int(box_idx), predicted_class, confidence, bbox[0], bbox[1], bbox[2], bbox[3]]
+            result_df.loc[len(result_df)] = [frame_number, box_idx, predicted_class, confidence, bbox[0], bbox[1], bbox[2], bbox[3]]
             
-            # Add the box index to the selected_indices list
-            selected_indices.append(int(box_idx))
+    return result_df
 
-    return result_df,   
 
 
 

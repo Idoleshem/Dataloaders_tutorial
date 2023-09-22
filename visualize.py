@@ -34,8 +34,3 @@ def save_image_with_bounding_boxes(image_path, bounding_boxes, output_image_path
     # Close the plot
     plt.close()
 
-
-img_path = "C:\\Users\\Ido\\Desktop\\Dataloaders_tutorial\\frames\\frame_0000.jpg"
-bounding_boxes = [[150.2,517.47,249.9,250]]
-output_image_path = "C:\\Users\\Ido\Desktop\\Dataloaders_tutorial\\output_image.jpg"
-save_image_with_bounding_boxes(img_path,bounding_boxes,output_image_path)

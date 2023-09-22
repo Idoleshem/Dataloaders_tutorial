@@ -1,7 +1,6 @@
 
 import os
 import warnings
-
 import cv2
 import pandas as pd
 import torch
@@ -36,35 +35,39 @@ class FrameDataset(Dataset):
 
 def process_video(video_path,batch_size):
 
+    # parameters and path
+    num_of_frames = 16
     frames_dir = "C:\\Users\\Ido\\Desktop\\Dataloaders_tutorial\\frames"
-    output_dir = "C:\\Users\\Ido\\Desktop\\Dataloaders_tutorial\\frames_with_bb"
-    #frames_dir = extract_frames(video_path)
 
+    # extract frames
+    frames_dir = extract_frames(video_path,num_of_frames)
+
+    # load model + evaluate mode
     model = torch.hub.load("ultralytics/yolov5", "yolov5s", pretrained=True)
     model.eval()
 
+    # define transformation
     transform = transforms.Compose([
         transforms.ToPILImage(),  # Convert to PIL image
         transforms.Resize((640, 640)),  # Resize
         transforms.ToTensor(),
     ])
 
-
+    # define the dataset ad dataloader
     dataset = FrameDataset(frames_dir,transform=transform)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=False) 
     
     # Create an empty DataFrame to store the results
     result_df = pd.DataFrame(columns=['Frame', 'Object', 'Class', 'Confidence', 'x_min', 'y_min', 'x_max', 'y_max'])
 
-    frame_number = 0
+    frame_number = 0 # counter
 
     for batch_idx, batch in enumerate(data_loader):        
-        results = model(batch) # index 0 - batch size, index 1 - num of grid cells, index 2 (85)  class scores, objectness scores, and bounding box coordinates     
-        # 4 bounding box coordinates (x, y, width, height) 
-        # 1 objectness score indicating the presence of an object.
-        # 80 class scores
+        
+        # infer on batch
+        results = model(batch) # result is a tensor ([batch_idx,channels,width, height ])
 
-        # Iterate through the results tensor
+        # Iterate through the batch results tensor
         for frame_idx_in_batch in range(results.size(0)):  # Iterate over the batch
             
             result_df = extract_batch_results(result_df,results,frame_idx_in_batch,frame_number)
@@ -74,8 +77,6 @@ def process_video(video_path,batch_size):
 
     # Set the DataFrame index with two levels: 'Frame' and 'Object'
     result_df.set_index(['Frame', 'Object'], inplace=True)
-
-    visualize_yolo_inference(result_df, frames_dir, output_dir)
     
     # calculate average num of persons in the video:
     average_num_of_persons = result_df.groupby(level=0).size().mean()
@@ -84,10 +85,8 @@ def process_video(video_path,batch_size):
 
 if __name__ == "__main__":
     
-
-
     video_path = "data/bus.mp4"
-    batch_size = 2 
+    batch_size = 4 
     average_num_of_persons = process_video(video_path,batch_size)
     print(f"Average number of persons in video: {average_num_of_persons}")
 
