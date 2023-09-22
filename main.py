@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 from torchvision.ops import nms
 
-from helpers import extract_batch_results, extract_frames, visualize_yolo_inference
+from helpers import extract_batch_results, extract_frames
 
 # Suppress DeprecationWarnings related to pandas
 warnings.filterwarnings("ignore", category=DeprecationWarning)
